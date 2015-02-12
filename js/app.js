@@ -5,8 +5,9 @@ var App = angular.module("TheCollector", ["ionic"]);
 
 App.service("Movielist", ["$http", "$log", Movielist]);
 App.service("UserList", ["$http", "$log", "$q", UserList]);
+App.service("Authentication", ["$http", "$log", "$state", Authentication]);
 App.controller("TheCollectorCtrl", ["$scope", "Movielist", "$log", TheCollectorCtrl]);
-App.controller("LoginCtrl", ["$scope", "$state", "$log", "$http", LoginCtrl]);
+App.controller("LoginCtrl", ["$scope", "Authentication", "$state", "$log", "$http", LoginCtrl]);
 
 // ========== CONTROLLERS ===========
 function TheCollectorCtrl($scope, Movielist, $log) {
@@ -14,18 +15,12 @@ function TheCollectorCtrl($scope, Movielist, $log) {
     Movielist.getMovies($scope);
 }
 
-function LoginCtrl($scope, $state, UserList, $http) {
+function LoginCtrl($scope, Authentication, $state, $log, $http) {
     $scope.signIn = function (user) {
         var UserName = user.username;
         var UserPassword = user.password;
-        var UserPW_Hash = sha256_digest(UserPassword);
-        var UserUN_Hash = sha256_digest(UserName);
-        $http.get("http://basti-sk.com/php/users.php?key1=" + UserUN_Hash + "&key2=" + UserPW_Hash).success(function (result) {
-                $scope.users = result;
-                if ($scope.users[0].Status == "true") $state.go('tabs.movies');
-                else alert("Error: Wrong Username or Password!");
-        });
-};
+        Authentication.authenticate(UserName, UserPassword);
+    };
 }
 
 // ==========    ROUTES   ===========
@@ -107,6 +102,30 @@ function Movielist($http, $log) {
                 voting: 2
             }
         ];
+    }
+}
+
+function Authentication($http, $log, $state) {
+    this.authenticate = function (UserName, UserPassword) {
+        var UserPW_Hash = sha256_digest(UserPassword);
+        var UserUN_Hash = sha256_digest(UserName);
+        var request = $http({
+            method: "post",
+            url: "https://basti-sk.com/php/users.php",
+            data: {
+                key1: UserUN_Hash,
+                key2: UserPW_Hash
+            },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
+        request.success(function (result) {
+            var aresult = result;
+            console.log(aresult[0].Status);
+            if (aresult[0].Status == "true") $state.go('tabs.movies');
+            else alert("Wrong Credentials!");
+        });
     }
 }
 
